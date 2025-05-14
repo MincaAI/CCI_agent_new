@@ -1,0 +1,12 @@
+# Ignore environment variables
+.env
+
+# Pycache
+__pycache__/
+
+# IDE / Editor
+.vscode/
+*.swp
+
+# System
+.DS_Store 
