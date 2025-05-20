@@ -48,11 +48,9 @@ if prompt:
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
 
-# === Bloc analyse de lead ===
+# === Bloc bouton juste après le chat input ===
 with st.container():
-    st.divider()
-    st.markdown("## 📊 Analyse finale de la conversation")
-
+    st.markdown("#### 🔍 Analyse finale")
     if st.button("Analyser le lead maintenant"):
         with st.spinner("Analyse en cours..."):
             history = get_full_conversation(st.session_state.session_id)
