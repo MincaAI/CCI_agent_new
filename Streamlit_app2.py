@@ -1,6 +1,7 @@
 import streamlit as st
 import uuid
-from Agent.agent2005 import agent_response
+from Agent.agent2005 import agent_response, extract_lead_info, get_full_conversation
+
 
 # === Config Streamlit ===
 st.set_page_config(
@@ -46,4 +47,18 @@ if prompt := st.chat_input("Votre message..."):
             response = agent_response(prompt, st.session_state.session_id)
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
+            
+st.divider()
+st.markdown("## 📊 Analyse finale de la conversation")
+
+if st.button("Analyser le lead maintenant"):
+    with st.spinner("Analyse en cours..."):
+        history = get_full_conversation(st.session_state.session_id)
+        lead = extract_lead_info(history)
+
+        if lead.get("email") != "inconnu":
+            st.success("Lead détecté 🎯")
+            st.json(lead)
+        else:
+            st.warning("Pas de lead qualifié détecté pour le moment.")
 

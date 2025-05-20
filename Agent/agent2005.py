@@ -8,7 +8,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain.schema import Document
 from pinecone import Pinecone
-from Agent.storage import store_lead_to_google_sheet
+from Agent.storage import store_lead_to_google_sheet  #
 from langchain_core.runnables import RunnableWithMessageHistory
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.chat_history import InMemoryChatMessageHistory
@@ -33,9 +33,11 @@ inactivity_event = threading.Event()
 
 def load_evenements_context():
     try:
-        with open("evenements_structures.txt", encoding="utf-8") as f:
+        with open("Data/evenements_structures.txt", encoding="utf-8") as f:
             return f.read().strip()
     except FileNotFoundError:
+        return ""
+    except Exception as e:
         return ""
 
 
@@ -71,24 +73,11 @@ def has_calendly_link(text: str) -> bool:
 
 
 def extract_lead_info(history: str) -> dict:
-    print("📝 Historique reçu pour extraction :")
-    print("-" * 50)
-    print(history)
-    print("-" * 50)
-
     template = load_extraction_prompt_template()
     prompt = template.replace("{{history}}", history)
 
     try:
-        print("\n📤 Envoi du prompt au modèle...")
         response = llm.invoke(prompt).content
-        print("\n📥 Réponse brute du modèle :")
-        print("-" * 50)
-        print(response)
-        print("-" * 50)
-        print("\n🔄 Tentative de parsing JSON...")
-
-        # Nettoyage de la réponse
         response = response.strip()
         if response.startswith("```"):
             response = response.split("\n", 1)[1]
@@ -98,20 +87,16 @@ def extract_lead_info(history: str) -> dict:
 
         import json
         data = json.loads(response)
-        print("\nJSON parsé avec succès :")
-        print(data)
-
         data["date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         return data
     except Exception as e:
-        print(f"\n❌ Erreur lors du parsing JSON : {str(e)}")
-        print("Type de l'erreur :", type(e).__name__)
         return {
             "prenom": "inconnu",
             "nom": "inconnu",
             "entreprise": "inconnu",
             "email": "inconnu",
             "interet": "inconnu",
+            "score": 1,
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
         }
 
@@ -140,7 +125,7 @@ def agent_response(user_input: str, session_id: str) -> str:
                             .replace("{{history}}", history or "[Aucune conversation précédente]")\
                             .replace("{{cci_context}}", base_cci_context)\
                             .replace("{{evenements_context}}", evenements_context or "[Aucun événement à afficher]")
-
+    
     reply = chain.invoke(input=prompt, config={"configurable": {"session_id": session_id}})
     reply_text = reply.content if hasattr(reply, "content") else str(reply)
 
@@ -150,32 +135,23 @@ def agent_response(user_input: str, session_id: str) -> str:
 
 
 def surveillance_inactivite(session_id: str, timeout=50):
-    print(f"(⏳ Surveillance d'inactivité activée - {timeout}s)")
     while True:
         inactivity_event.clear()
         if not inactivity_event.wait(timeout):
-            print("\n⏰ Inactivité détectée. Analyse...")
             try:
                 history = get_full_conversation(session_id)
                 if has_calendly_link(history):
                     lead = extract_lead_info(history)
                     if lead.get("prenom") != "inconnu" and lead.get("email") != "inconnu":
                         store_lead_to_google_sheet(lead)
-                        print("✅ Lead enregistré :", lead)
-                    else:
-                        print("⚠️ Données incomplètes.")
-                else:
-                    print("ℹ️ Aucun lien Calendly trouvé.")
-            except Exception as e:
-                print("❌ Erreur inactivité:", e)
-            print("👋 Fin de session.")
+            except Exception:
+                pass
             sys.exit()
         time.sleep(1)
 
 
 if __name__ == "__main__":
-    print("🤖 Agent CCI — en ligne")
-    session_id = "session_001"
+    session_id = "session_002"
     threading.Thread(target=surveillance_inactivite, args=(session_id,), daemon=True).start()
 
     try:
@@ -185,5 +161,5 @@ if __name__ == "__main__":
             reply = agent_response(user_input, session_id=session_id)
             print(f"\n🧠 Agent :\n{reply}\n")
     except KeyboardInterrupt:
-        print("\n⛔ Session terminée manuellement")
+        pass
 

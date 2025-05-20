@@ -51,7 +51,7 @@ Voici l’historique de la conversation avec cette personne :
 Voici les informations disponibles dans notre base CCI :  
 {{cci_context}}
 
-Voici les événements disponibles, à mentionner s’ils sont pertinents :
+Voici les événements a venir, organisée par la CCI Mexico :
 {{evenements_context}}
 
 Message reçu :  

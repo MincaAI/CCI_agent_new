@@ -25,5 +25,6 @@ def store_lead_to_google_sheet(lead_data: dict):
         lead_data.get("entreprise", "inconnu"),
         lead_data.get("email", "inconnu"),
         lead_data.get("interet", "inconnu"),
+        lead_data.get("score", 1),
         date_now
     ])
