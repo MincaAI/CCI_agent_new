@@ -1,5 +1,6 @@
 # Ignore environment variables
 .env
+google-credentials.json
 
 # Pycache
 __pycache__/
