@@ -1,25 +1,29 @@
+m# storage.py
 import gspread
-import streamlit as st
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
+import os
 
 def store_lead_to_google_sheet(lead_data: dict):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-
-    # 🔐 Credentials from Streamlit secrets
-    service_account_info = st.secrets["gcp_service_account"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
+    # Utiliser le chemin relatif à la racine du projet
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    creds_path = os.path.join(project_root, "google-credentials.json")
+    creds = ServiceAccountCredentials.from_json_keyfile_name(creds_path, scope)
     client = gspread.authorize(creds)
 
-    sheet = client.open("CCI-Leads").sheet1
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    # Nom exact du fichier Google Sheet
+    sheet = client.open("CCI_support_agent_lead").sheet1
 
+    # Date actuelle (en UTC)
+    date_now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Envoie des données dans l'ordre des colonnes A → F
     sheet.append_row([
         lead_data.get("prenom", "inconnu"),
         lead_data.get("nom", "inconnu"),
         lead_data.get("entreprise", "inconnu"),
-        lead_data.get("date", now),
+        lead_data.get("email", "inconnu"),
         lead_data.get("interet", "inconnu"),
-        lead_data.get("email", "inconnu")
+        date_now
     ])
-

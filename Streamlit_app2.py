@@ -1,11 +1,10 @@
 import streamlit as st
 import uuid
-import threading
-from Agent.agent2005 import agent_response, surveillance_inactivite, inactivity_event
+from Agent.agent2005 import agent_response
 
 # === Config Streamlit ===
 st.set_page_config(
-    page_title="CCI Mexico Chat Assistant",
+    page_title="CCI Mexico AI Assistant",
     layout="centered"
 )
 
@@ -16,21 +15,11 @@ if "messages" not in st.session_state:
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
-if "inactivity_thread_started" not in st.session_state:
-    # Lancer le thread d'inactivité une seule fois
-    threading.Thread(
-        target=surveillance_inactivite,
-        args=(st.session_state.session_id,),
-        daemon=True
-    ).start()
-    st.session_state.inactivity_thread_started = True
-
 # === UI ===
 st.title("Assistant CCI Mexico 🇲🇽🤖")
 
 st.markdown("""
 Bienvenue ! Je suis l'assistant virtuel de la Chambre de Commerce et d'Industrie Franco-mexicaine.
-
 **Comment puis-je vous aider aujourd’hui ?**
 
 <br>
@@ -46,9 +35,6 @@ for message in st.session_state.messages:
 
 # === Zone de saisie ===
 if prompt := st.chat_input("Votre message..."):
-    # Rafraîchir le timer d'inactivité
-    inactivity_event.set()
-
     # Ajouter message utilisateur
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -60,3 +46,4 @@ if prompt := st.chat_input("Votre message..."):
             response = agent_response(prompt, st.session_state.session_id)
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
+
