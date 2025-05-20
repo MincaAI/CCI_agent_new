@@ -2,7 +2,6 @@ import streamlit as st
 import uuid
 from Agent.agent2005 import agent_response, extract_lead_info, get_full_conversation
 
-
 # === Config Streamlit ===
 st.set_page_config(
     page_title="CCI Mexico AI Assistant",
@@ -20,7 +19,7 @@ if "session_id" not in st.session_state:
 st.title("Assistant CCI Mexico 🇲🇽🤖")
 
 st.markdown("""
-Bienvenue ! Je suis l'assistant virtuel de la Chambre de Commerce et d'Industrie Franco-mexicaine.
+Bienvenue ! Je suis l'assistant virtuel de la Chambre de Commerce et d'Industrie Franco-mexicaine.  
 **Comment puis-je vous aider aujourd’hui ?**
 
 <br>
@@ -29,13 +28,14 @@ Bienvenue ! Je suis l'assistant virtuel de la Chambre de Commerce et d'Industrie
 ¿En qué puedo ayudarle hoy?
 """, unsafe_allow_html=True)
 
-# === Historique affiché ===
+# === Affichage historique de messages ===
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# === Zone de saisie ===
-if prompt := st.chat_input("Votre message..."):
+# === Entrée utilisateur ===
+prompt = st.chat_input("Votre message...")
+if prompt:
     # Ajouter message utilisateur
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -47,18 +47,19 @@ if prompt := st.chat_input("Votre message..."):
             response = agent_response(prompt, st.session_state.session_id)
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
-            
-st.divider()
-st.markdown("## 📊 Analyse finale de la conversation")
 
-if st.button("Analyser le lead maintenant"):
-    with st.spinner("Analyse en cours..."):
-        history = get_full_conversation(st.session_state.session_id)
-        lead = extract_lead_info(history)
+# === Bloc analyse de lead ===
+with st.container():
+    st.divider()
+    st.markdown("## 📊 Analyse finale de la conversation")
 
-        if lead.get("email") != "inconnu":
-            st.success("Lead détecté 🎯")
-            st.json(lead)
-        else:
-            st.warning("Pas de lead qualifié détecté pour le moment.")
+    if st.button("Analyser le lead maintenant"):
+        with st.spinner("Analyse en cours..."):
+            history = get_full_conversation(st.session_state.session_id)
+            lead = extract_lead_info(history)
 
+            if lead.get("email") != "inconnu":
+                st.success("Lead détecté 🎯")
+                st.json(lead)
+            else:
+                st.warning("Pas de lead qualifié détecté pour le moment.")
