@@ -15,7 +15,21 @@ if "messages" not in st.session_state:
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
-# === UI ===
+# === SIDEBAR : Analyse du lead ===
+with st.sidebar:
+    st.markdown("### 🔎 Analyse lead")
+    if st.button("Analyser le lead maintenant"):
+        with st.spinner("Analyse en cours..."):
+            history = get_full_conversation(st.session_state.session_id)
+            lead = extract_lead_info(history)
+
+            if lead.get("email") != "inconnu":
+                st.success("✅ Lead détecté")
+                st.json(lead)
+            else:
+                st.warning("Pas de lead qualifié détecté.")
+
+# === Interface principale ===
 st.title("Assistant CCI Mexico 🇲🇽🤖")
 
 st.markdown("""
@@ -28,7 +42,7 @@ Bienvenue ! Je suis l'assistant virtuel de la Chambre de Commerce et d'Industrie
 ¿En qué puedo ayudarle hoy?
 """, unsafe_allow_html=True)
 
-# === Affichage historique de messages ===
+# === Affichage historique des messages ===
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
@@ -47,17 +61,3 @@ if prompt:
             response = agent_response(prompt, st.session_state.session_id)
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
-
-# === Bloc bouton juste après le chat input ===
-with st.container():
-    st.markdown("#### 🔍 Analyse finale")
-    if st.button("Analyser le lead maintenant"):
-        with st.spinner("Analyse en cours..."):
-            history = get_full_conversation(st.session_state.session_id)
-            lead = extract_lead_info(history)
-
-            if lead.get("email") != "inconnu":
-                st.success("Lead détecté 🎯")
-                st.json(lead)
-            else:
-                st.warning("Pas de lead qualifié détecté pour le moment.")
