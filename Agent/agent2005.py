@@ -31,7 +31,6 @@ long_term_store = PineconeVectorStore(index=index, embedding=embeddings, namespa
 chat_histories = {}
 inactivity_event = threading.Event()
 
-
 def load_evenements_context():
     try:
         with open("evenements_structures.txt", encoding="utf-8") as f:
@@ -43,6 +42,12 @@ def load_evenements_context():
 def load_prompt_template():
     with open("prompt_base.txt", encoding="utf-8") as f:
         return f.read().strip()
+    
+def load_extraction_prompt_template():
+    with open("prompt_extraction.txt", encoding="utf-8") as f:
+        return f.read().strip()
+    
+evenements_context = load_evenements_context()
 
 
 def get_full_conversation(session_id: str) -> str:
@@ -66,38 +71,14 @@ def has_calendly_link(text: str) -> bool:
 
 
 def extract_lead_info(history: str) -> dict:
-    print("\n🔍 DEBUG - Début de l'extraction des informations")
     print("📝 Historique reçu pour extraction :")
     print("-" * 50)
     print(history)
     print("-" * 50)
 
-    prompt = f"""
-Tu es un extracteur d'informations. Ta tâche est d'extraire des informations d'une conversation et de les formater en JSON.
+    template = load_extraction_prompt_template()
+    prompt = template.replace("{{history}}", history)
 
-IMPORTANT : Ta réponse doit être UNIQUEMENT le JSON, sans aucun autre texte, sans backticks, sans marqueurs de code.
-
-Voici l'historique d'une conversation entre un utilisateur et un agent CCI. Extrait les informations suivantes :
-- Prénom
-- Nom
-- Entreprise
-- Adresse e-mail
-- Domaine d'intérêt principal
-
-Format de réponse attendu (copie exacte, remplace juste les ...) :
-{{
-  "prenom": "...",
-  "nom": "...",
-  "entreprise": "...",
-  "email": "...",
-  "interet": "..."
-}}
-
-Si une information est inconnue, mets "inconnu".
-
-Historique de la conversation :
-{history}
-"""
     try:
         print("\n📤 Envoi du prompt au modèle...")
         response = llm.invoke(prompt).content
@@ -107,19 +88,19 @@ Historique de la conversation :
         print("-" * 50)
         print("\n🔄 Tentative de parsing JSON...")
 
-        # Nettoyage de la réponse pour enlever les backticks et le markdown si présents
+        # Nettoyage de la réponse
         response = response.strip()
         if response.startswith("```"):
-            response = response.split("\n", 1)[1]  # Enlève la première ligne
+            response = response.split("\n", 1)[1]
         if response.endswith("```"):
-            response = response.rsplit("\n", 1)[0]  # Enlève la dernière ligne
+            response = response.rsplit("\n", 1)[0]
         response = response.strip()
 
         import json
         data = json.loads(response)
-        print("\n✅ JSON parsé avec succès :")
+        print("\nJSON parsé avec succès :")
         print(data)
-        
+
         data["date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         return data
     except Exception as e:
@@ -133,6 +114,7 @@ Historique de la conversation :
             "interet": "inconnu",
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
         }
+
 
 
 def get_session_history(session_id: str):
@@ -156,7 +138,8 @@ def agent_response(user_input: str, session_id: str) -> str:
     prompt = prompt_template.replace("{{today}}", today)\
                             .replace("{{user_input}}", user_input)\
                             .replace("{{history}}", history or "[Aucune conversation précédente]")\
-                            .replace("{{cci_context}}", base_cci_context)
+                            .replace("{{cci_context}}", base_cci_context)\
+                            .replace("{{evenements_context}}", evenements_context or "[Aucun événement à afficher]")
 
     reply = chain.invoke(input=prompt, config={"configurable": {"session_id": session_id}})
     reply_text = reply.content if hasattr(reply, "content") else str(reply)
