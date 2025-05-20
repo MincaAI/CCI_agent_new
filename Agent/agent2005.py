@@ -151,7 +151,7 @@ def surveillance_inactivite(session_id: str, timeout=50):
 
 
 if __name__ == "__main__":
-    session_id = "session_002"
+    session_id = "session_003"
     threading.Thread(target=surveillance_inactivite, args=(session_id,), daemon=True).start()
 
     try:
