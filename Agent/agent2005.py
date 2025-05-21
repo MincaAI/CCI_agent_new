@@ -52,18 +52,18 @@ def load_extraction_prompt_template():
 evenements_context = load_evenements_context()
 
 
-def get_full_conversation(session_id: str) -> str:
-    docs = long_term_store.similarity_search(" ", k=100)
-    user_docs = [doc for doc in docs if doc.metadata.get("user_id") == session_id]
+def get_full_conversation(chat_id: str) -> str:
+    docs = long_term_store.similarity_search(" ", k=150)
+    user_docs = [doc for doc in docs if doc.metadata.get("user_id") == chat_id]
     user_docs.sort(key=lambda d: d.metadata.get("timestamp", ""))
     return "\n".join(doc.page_content for doc in user_docs)
 
 
-def save_message_to_long_term_memory(role: str, message: str, session_id: str):
+def save_message_to_long_term_memory(role: str, message: str, chat_id: str):
     now = datetime.now(timezone.utc).isoformat()
     doc = Document(
         page_content=f"{role} : {message}",
-        metadata={"user_id": session_id, "timestamp": now, "type": role}
+        metadata={"user_id": chat_id, "timestamp": now, "type": role}
     )
     long_term_store.add_documents([doc])
 
@@ -100,20 +100,18 @@ def extract_lead_info(history: str) -> dict:
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
         }
 
+def get_chat_history(chat_id: str):
+    if chat_id not in chat_histories:
+        chat_histories[chat_id] = InMemoryChatMessageHistory()
+    return chat_histories[chat_id]
 
 
-def get_session_history(session_id: str):
-    if session_id not in chat_histories:
-        chat_histories[session_id] = InMemoryChatMessageHistory()
-    return chat_histories[session_id]
-
-
-chain = RunnableWithMessageHistory(llm, get_session_history)
+chain = RunnableWithMessageHistory(llm, get_chat_history)
 prompt_template = load_prompt_template()
 
-def agent_response(user_input: str, session_id: str) -> str:
+def agent_response(user_input: str, chat_id: str) -> str:
     today = datetime.now().strftime("%d %B %Y")
-    history = get_full_conversation(session_id)
+    history = get_full_conversation(chat_id)
 
     # ➕ Ajouter la recherche de contexte CCI à partir de la question posée
     base_cci_context_docs = retriever.invoke(user_input)
@@ -126,20 +124,20 @@ def agent_response(user_input: str, session_id: str) -> str:
                             .replace("{{cci_context}}", base_cci_context)\
                             .replace("{{evenements_context}}", evenements_context or "[Aucun événement à afficher]")
     
-    reply = chain.invoke(input=prompt, config={"configurable": {"session_id": session_id}})
+    reply = chain.invoke(input=prompt, config={"configurable": {"session_id": chat_id}})
     reply_text = reply.content if hasattr(reply, "content") else str(reply)
 
-    save_message_to_long_term_memory("Utilisateur", user_input, session_id)
-    save_message_to_long_term_memory("Agent", reply_text, session_id)
+    save_message_to_long_term_memory("Utilisateur", user_input, chat_id)
+    save_message_to_long_term_memory("Agent", reply_text, chat_id)
     return reply_text
 
 
-def surveillance_inactivite(session_id: str, timeout=50):
+def surveillance_inactivite(chat_id: str, timeout=50):
     while True:
         inactivity_event.clear()
         if not inactivity_event.wait(timeout):
             try:
-                history = get_full_conversation(session_id)
+                history = get_full_conversation(chat_id)
                 if has_calendly_link(history):
                     lead = extract_lead_info(history)
                     if lead.get("prenom") != "inconnu" and lead.get("email") != "inconnu":
@@ -151,14 +149,16 @@ def surveillance_inactivite(session_id: str, timeout=50):
 
 
 if __name__ == "__main__":
-    session_id = "session_003"
-    threading.Thread(target=surveillance_inactivite, args=(session_id,), daemon=True).start()
+    import uuid
+    chat_id = str(uuid.uuid4())  # 👈 Generate a unique ID per session
+    print(f"🆔 Session Chat ID: {chat_id}")
+    threading.Thread(target=surveillance_inactivite, args=(chat_id,), daemon=True).start()
 
     try:
         while True:
             user_input = input("💬 Vous : ")
             inactivity_event.set()
-            reply = agent_response(user_input, session_id=session_id)
+            reply = agent_response(user_input, chat_id=chat_id)
             print(f"\n🧠 Agent :\n{reply}\n")
     except KeyboardInterrupt:
         pass
