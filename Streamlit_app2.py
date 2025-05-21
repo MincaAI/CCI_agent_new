@@ -16,8 +16,7 @@ if "chat_id" not in st.session_state:
     st.session_state.chat_id = str(uuid.uuid4())
     
 if st.sidebar.button("🆕 Nouvelle session"):
-    st.session_state.chat_id = str(uuid.uuid4())
-    st.session_state.messages = []
+    st.session_state.clear()  # Réinitialise toute la session proprement
     st.experimental_rerun()
 
 # === SIDEBAR : Analyse du lead ===
