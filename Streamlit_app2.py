@@ -17,7 +17,7 @@ if "chat_id" not in st.session_state:
     
 if st.sidebar.button("🆕 Nouvelle session"):
     st.session_state.clear()  # Réinitialise toute la session proprement
-    st.experimental_rerun()
+    st.rerun()
 
 # === SIDEBAR : Analyse du lead ===
 with st.sidebar:
