@@ -40,7 +40,6 @@ def load_evenements_context():
     except Exception as e:
         return ""
 
-
 def load_prompt_template():
     with open("prompt_base.txt", encoding="utf-8") as f:
         return f.read().strip()
@@ -50,7 +49,6 @@ def load_extraction_prompt_template():
         return f.read().strip()
     
 evenements_context = load_evenements_context()
-
 
 def get_full_conversation(chat_id: str) -> str:
     docs = long_term_store.similarity_search(" ", k=150)
