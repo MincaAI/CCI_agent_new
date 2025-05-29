@@ -65,17 +65,17 @@ def load_extraction_prompt_template():
 # evenements_context = load_evenements_context()
 
 def get_full_conversation(chat_id: str) -> str:
-    docs = long_term_store.similarity_search(" ", k=50)
-    user_docs = [doc for doc in docs if doc.metadata.get("user_id") == chat_id]
-    user_docs.sort(key=lambda d: d.metadata.get("timestamp", ""))
-    return "\n".join(doc.page_content for doc in user_docs[-30:])
+    # Utilise un filtre Pinecone directement au lieu de tout rapatrier et filtrer ensuite
+    docs = long_term_store.similarity_search(" ", k=50, filter={"chat_id": chat_id})
+    docs.sort(key=lambda d: d.metadata.get("timestamp", ""))
+    return "\n".join(doc.page_content for doc in docs)
 
 
 def save_message_to_long_term_memory(role: str, message: str, chat_id: str):
     now = datetime.now(timezone.utc).isoformat()
     doc = Document(
         page_content=f"{role} : {message}",
-        metadata={"user_id": chat_id, "timestamp": now, "type": role}
+        metadata={"chat_id": chat_id, "timestamp": now, "type": role}
     )
     long_term_store.add_documents([doc])
 
@@ -134,6 +134,9 @@ async def agent_response(user_input: str, chat_id: str) -> str:
                             .replace("{{user_input}}", user_input)\
                             .replace("{{history}}", history or "[Aucune conversation précédente]")\
                             .replace("{{cci_context}}", base_cci_context)
+    print("\n---🧠 CONTEXT WINDOW (prompt complet envoyé au LLM) ---\n")
+    print(prompt)
+    print("\n--- FIN CONTEXTE ---\n")
     print("\n🧠 Agent :\n", end="", flush=True)
     
     reply = await chain.ainvoke(input=prompt, config={"configurable": {"session_id": chat_id}})
