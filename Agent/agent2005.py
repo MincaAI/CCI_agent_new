@@ -29,7 +29,7 @@ PINECONE_INDEX = os.getenv("PINECONE_INDEX")
 pc = Pinecone(api_key=PINECONE_API_KEY)
 index = pc.Index(PINECONE_INDEX)
 llm = ChatOpenAI(
-    temperature=0.5,
+    temperature=0.6,
     model="gpt-4o",
     streaming=True,
     callbacks=[StreamPrintCallback()]
