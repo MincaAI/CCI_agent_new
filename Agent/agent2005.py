@@ -68,7 +68,7 @@ def get_full_conversation(chat_id: str) -> str:
     docs = long_term_store.similarity_search(" ", k=50)
     user_docs = [doc for doc in docs if doc.metadata.get("user_id") == chat_id]
     user_docs.sort(key=lambda d: d.metadata.get("timestamp", ""))
-    return "\n".join(doc.page_content for doc in user_docs[-10:])
+    return "\n".join(doc.page_content for doc in user_docs[-30:])
 
 
 def save_message_to_long_term_memory(role: str, message: str, chat_id: str):
