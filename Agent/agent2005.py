@@ -9,7 +9,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain.schema import Document
 from pinecone import Pinecone
-from Agent.storage import store_lead_to_google_sheet  #
+from storage import store_lead_to_google_sheet  #
 from langchain_core.runnables import RunnableWithMessageHistory
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.chat_history import InMemoryChatMessageHistory
@@ -66,7 +66,7 @@ def load_extraction_prompt_template():
 
 def get_full_conversation(chat_id: str) -> str:
     # Utilise un filtre Pinecone directement au lieu de tout rapatrier et filtrer ensuite
-    docs = long_term_store.similarity_search(" ", k=50, filter={"chat_id": chat_id})
+    docs = long_term_store.similarity_search(" ", k=150, filter={"chat_id": chat_id}) # 150 messages
     docs.sort(key=lambda d: d.metadata.get("timestamp", ""))
     return "\n".join(doc.page_content for doc in docs)
 
@@ -134,9 +134,6 @@ async def agent_response(user_input: str, chat_id: str) -> str:
                             .replace("{{user_input}}", user_input)\
                             .replace("{{history}}", history or "[Aucune conversation précédente]")\
                             .replace("{{cci_context}}", base_cci_context)
-    print("\n---🧠 CONTEXT WINDOW (prompt complet envoyé au LLM) ---\n")
-    print(prompt)
-    print("\n--- FIN CONTEXTE ---\n")
     print("\n🧠 Agent :\n", end="", flush=True)
     
     reply = await chain.ainvoke(input=prompt, config={"configurable": {"session_id": chat_id}})
