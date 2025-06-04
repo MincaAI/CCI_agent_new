@@ -152,8 +152,7 @@ def surveillance_inactivite(chat_id: str, timeout=50):
                 history = get_full_conversation(chat_id)
                 if has_calendly_link(history):
                     lead = extract_lead_info(history)
-                    if lead.get("prenom") != "inconnu" and lead.get("email") != "inconnu":
-                        store_lead_to_google_sheet(lead)
+                    store_lead_to_google_sheet(lead)
             except Exception:
                 pass
             sys.exit()
