@@ -56,7 +56,7 @@ retriever = PineconeVectorStore(
 summary_store = PineconeVectorStore(index=index, embedding=embeddings,namespace="summaries")
 
 # Mémoire conversationnelle par utilisateur (chat history)
-SUMMARY_INTERVAL = 30
+SUMMARY_INTERVAL = 15
 message_counters = {}
 
 
@@ -77,7 +77,7 @@ def load_summary_from_pinecone(chat_id: str) -> str:
     docs = summary_store.similarity_search("", k=1, filter={"chat_id": chat_id, "summary_id": f"summary_{chat_id}"})
     return docs[0].page_content if docs else ""
 
-def generate_summary_from_memory(memory: ConversationSummaryBufferMemory, chat_id: str, max_messages: int = 30) -> str:
+def generate_summary_from_memory(memory: ConversationSummaryBufferMemory, chat_id: str, max_messages: int = 15) -> str:
     new_messages = memory.chat_memory.messages[-max_messages:]
     convo_text = "\n".join([f"{msg.type.capitalize()} : {msg.content}" for msg in new_messages])
 
@@ -111,7 +111,7 @@ def load_summary_memory_from_redis(chat_id):
     data = redis_client.get(chat_id)
     memory = ConversationSummaryBufferMemory(
         llm=llm,
-        max_token_limit=1000,
+        max_token_limit=800,
         return_messages=True,
         memory_key="chat_history"
     )
