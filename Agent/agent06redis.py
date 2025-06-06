@@ -60,40 +60,44 @@ SUMMARY_INTERVAL = 30
 message_counters = {}
 
 
-def save_summary_to_pinecone(chat_id: str, summary: str):
-    timestamp = datetime.now(timezone.utc)
+def save_or_update_summary(chat_id: str, summary: str):
     doc = Document(
         page_content=summary,
         metadata={
             "chat_id": chat_id,
-            "summary_id": f"summary_{timestamp.strftime('%Y%m%d_%H%M%S')}",
-            "timestamp": timestamp.isoformat()
+            "summary_id": f"summary_{chat_id}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     )
-    summary_store.add_documents([doc])
+    # On remplace l'ancien résumé
+    summary_store.delete(ids=[f"summary_{chat_id}"])
+    summary_store.add_documents([doc], ids=[f"summary_{chat_id}"])
 
 def load_summary_from_pinecone(chat_id: str) -> str:
-    docs = summary_store.similarity_search("", k=1, filter={"chat_id": chat_id})
+    docs = summary_store.similarity_search("", k=1, filter={"chat_id": chat_id, "summary_id": f"summary_{chat_id}"})
     return docs[0].page_content if docs else ""
 
-def generate_summary_from_memory(memory: ConversationSummaryBufferMemory, chat_id: str, max_messages: int = 10) -> str:
-    recent_messages = memory.chat_memory.messages[-max_messages:]
-    convo_text = "\n".join([f"{msg.type.capitalize()} : {msg.content}" for msg in recent_messages])
+def generate_summary_from_memory(memory: ConversationSummaryBufferMemory, chat_id: str, max_messages: int = 30) -> str:
+    new_messages = memory.chat_memory.messages[-max_messages:]
+    convo_text = "\n".join([f"{msg.type.capitalize()} : {msg.content}" for msg in new_messages])
+
     if not convo_text.strip():
         return ""
+
+    old_summary = load_summary_from_pinecone(chat_id)
+
     prompt = f"""
-    Voici une conversation entre un utilisateur et un agent de la CCI France Mexique. Résume-la en identifiant :
+    Voici le résumé actuel d’une conversation WhatsApp entre toi et l'utilisateur  :
+    {old_summary or '[aucun résumé pour le moment]'}
 
-    - Qui est l'utilisateur ? (situation, rôle, objectifs)
-    - Quels besoins ou intentions a-t-il exprimés ?
-    - Quels services ou ressources lui ont été proposés ?
-    - Y a-t-il des éléments à suivre ou relancer ?
+    Voici les nouveaux messages à intégrer :
+    {convo_text}
 
-    Résumé en 7 phrases max. Conversation :
-    \n\n{convo_text}
+    Génére un **nouveau résumé synthétique mis à jour**, qui conserve les éléments utiles de l’ancien et ajoute les nouvelles informations importantes. Résume en 7 phrases maximum.
     """
+
     summary = llm.invoke(prompt).content.strip()
-    save_summary_to_pinecone(chat_id, summary)
+    save_or_update_summary(chat_id, summary)
     return summary
 
 def save_summary_memory_to_redis(chat_id, memory):
@@ -159,6 +163,12 @@ def extract_lead_info(history: str) -> dict:
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
         }
         
+def get_and_increment_counter(chat_id: str) -> int:
+    key = f"msg_counter:{chat_id}"
+    counter = redis_client.incr(key, 1)
+    redis_client.expire(key, 86400)  # 24h
+    return counter
+
 prompt_template = load_prompt_template()
 
 async def agent_response(user_input: str, chat_id: str) -> str:
@@ -190,10 +200,10 @@ async def agent_response(user_input: str, chat_id: str) -> str:
     save_summary_memory_to_redis(chat_id, memory)
 
     # Incrément du compteur et résumé auto tous les 30 messages
-    message_counters[chat_id] = message_counters.get(chat_id, 0) + 2
-    if message_counters[chat_id] >= SUMMARY_INTERVAL:
-        message_counters[chat_id] = 0
-        generate_summary_from_memory(memory,chat_id)
+    counter = get_and_increment_counter(chat_id)
+    if counter >= SUMMARY_INTERVAL:
+        redis_client.delete(f"msg_counter:{chat_id}")
+        generate_summary_from_memory(memory, chat_id)
 
     return reply_text
 
