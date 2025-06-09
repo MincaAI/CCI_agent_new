@@ -21,6 +21,10 @@ import redis
 load_dotenv()
 inactivity_event = threading.Event()
 
+##added the initialization of the redis client
+redis_url = os.getenv("REDIS_URL")
+redis_client = redis.Redis.from_url(redis_url)
+
 class StreamPrintCallback(BaseCallbackHandler):
     def on_llm_new_token(self, token: str, **kwargs):
         print(token, end="", flush=True)
@@ -147,6 +151,9 @@ async def agent_response(user_input: str, chat_id: str) -> str:
 
     memory.chat_memory.add_user_message(user_input)
     memory.chat_memory.add_ai_message(reply_text)
+    
+    print(f"[DEBUG] Memory written to Redis for chat_id: {chat_id}")
+    print(f"[DEBUG] Buffer now contains: {[msg.content for msg in memory.buffer]}")
 
     # Incrément du compteur et résumé auto tous les 30 messages
     counter = get_and_increment_counter(chat_id)
