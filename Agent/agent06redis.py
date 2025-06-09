@@ -102,6 +102,7 @@ def get_memory(chat_id: str) -> ConversationSummaryBufferMemory:
     history = RedisChatMessageHistory(
         session_id=chat_id,
         url=redis_url
+        key_prefix="message_store" 
     )
 
     memory = ConversationSummaryBufferMemory(
@@ -110,6 +111,7 @@ def get_memory(chat_id: str) -> ConversationSummaryBufferMemory:
         chat_memory=history,
         return_messages=True,
         max_token_limit=800
+        
     )
     return memory
 
