@@ -9,7 +9,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain.schema import Document
 from pinecone import Pinecone
-from Agent.Lead_extraction.storage import store_lead_to_google_sheet  #
+from Lead_extraction.storage import store_lead_to_google_sheet  #
 from langchain_core.runnables import RunnableWithMessageHistory
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.chat_history import InMemoryChatMessageHistory
@@ -42,8 +42,8 @@ retriever = PineconeVectorStore(
 long_term_store = PineconeVectorStore(index=index, embedding=embeddings, namespace="memory")
 
 # Mémoire conversationnelle par utilisateur (chat history)
-chat_histories = {}
 inactivity_event = threading.Event()
+chat_histories = {}
 
 #def load_evenements_context():
 #    try:
@@ -53,7 +53,7 @@ inactivity_event = threading.Event()
 #        return ""
 #    except Exception as e:
 #        return ""
-
+#
 def load_prompt_template():
     with open("prompt_base.txt", encoding="utf-8") as f:
         return f.read().strip()
@@ -66,7 +66,7 @@ def load_extraction_prompt_template():
 
 def get_full_conversation(chat_id: str) -> str:
     # Utilise un filtre Pinecone directement au lieu de tout rapatrier et filtrer ensuite
-    docs = long_term_store.similarity_search(" ", k=150, filter={"chat_id": chat_id}) # 150 messages
+    docs = long_term_store.similarity_search(" ", k=100, filter={"chat_id": chat_id}) # 150 messages
     docs.sort(key=lambda d: d.metadata.get("timestamp", ""))
     return "\n".join(doc.page_content for doc in docs)
 
@@ -111,12 +111,11 @@ def extract_lead_info(history: str) -> dict:
             "score": 1,
             "date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
         }
-
+        
 def get_chat_history(chat_id: str):
     if chat_id not in chat_histories:
         chat_histories[chat_id] = InMemoryChatMessageHistory()
     return chat_histories[chat_id]
-
 
 chain = RunnableWithMessageHistory(llm, get_chat_history)
 prompt_template = load_prompt_template()
