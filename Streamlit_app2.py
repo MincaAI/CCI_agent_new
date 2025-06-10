@@ -21,18 +21,6 @@ if st.sidebar.button("🆕 Nouvelle session"):
     st.rerun()
 
 # === SIDEBAR : Analyse du lead ===
-with st.sidebar:
-    st.markdown("### 🔎 Analyse lead")
-    if st.button("Analyser le lead maintenant"):
-        with st.spinner("Analyse en cours..."):
-            history = get_full_conversation(st.session_state.chat_id)
-            lead = extract_lead_info(history)
-
-            if lead.get("email") != "inconnu":
-                st.success("✅ Lead détecté")
-                st.json(lead)
-            else:
-                st.warning("Pas de lead qualifié détecté.")
 
 # === Interface principale ===
 st.title("Assistant CCI Mexico 🇲🇽🤖")
