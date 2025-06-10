@@ -65,9 +65,15 @@ def load_extraction_prompt_template():
 # evenements_context = load_evenements_context()
 
 def get_full_conversation(chat_id: str) -> str:
-    # Utilise un filtre Pinecone directement au lieu de tout rapatrier et filtrer ensuite
-    docs = long_term_store.similarity_search(" ", k=100, filter={"chat_id": chat_id}) # 150 messages
+    # Récupère les messages pour ce chat_id
+    docs = long_term_store.similarity_search(" ", k=100, filter={"chat_id": chat_id})
+    
+    # Tri par timestamp pour garantir l'ordre chronologique
     docs.sort(key=lambda d: d.metadata.get("timestamp", ""))
+    
+    # Ne garde que les 30 derniers messages
+    docs = docs[-30:] if len(docs) > 30 else docs
+        
     return "\n".join(doc.page_content for doc in docs)
 
 
@@ -123,6 +129,7 @@ prompt_template = load_prompt_template()
 async def agent_response(user_input: str, chat_id: str) -> str:
     today = datetime.now().strftime("%d %B %Y")
     history = get_full_conversation(chat_id)
+    
 
     # ➕ Ajouter la recherche de contexte CCI à partir de la question posée
     base_cci_context_docs = retriever.invoke(user_input)
